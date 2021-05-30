@@ -1,5 +1,5 @@
 {
-  "version": "0.0.9",
+  "version": "0.1.0",
   "name": "@kmamal/packager",
   "description": "Bundles a Node.js application into a self-contained zip archive",
   "keywords": [
