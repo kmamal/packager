@@ -88,7 +88,7 @@ const package = async (options) => {
 				await run([ zip, 'x', node_archive ], { cwd: tmp_dir })
 			}
 			node_name = 'node.exe'
-			npm_name = 'npm.exe'
+			npm_name = 'npm.cmd'
 			_node = node_name
 			_npm = npm_name
 			runner = 'cmd-runner.bat'
