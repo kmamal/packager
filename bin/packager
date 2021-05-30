@@ -8,16 +8,16 @@ const args = (() => {
 		add_help: true,
 	})
 
-	parser.add_argument('-i', '--in-dir', {
+	parser.add_argument('-I', '--in-dir', {
 		help: "The directory to bundle up (default: cwd)",
 	})
 
-	parser.add_argument('-o', '--out-file', {
-		help: "Name of output file (default: name-version-platform.zip)",
+	parser.add_argument('-O', '--out-dir', {
+		help: "Directory to place output file in (default: cwd)",
 	})
 
-	parser.add_argument('-d', '--out-dir', {
-		help: "Directory to place output file in (default: cwd)",
+	parser.add_argument('-n', '--out-name', {
+		help: "Name of output file (default: name-version-platform.zip)",
 	})
 
 	parser.add_argument('-t', '--target', {
@@ -50,7 +50,7 @@ const project = {
 const target = {
 	version: args.target,
 	platform: args.platform,
-	file: args.out_file,
+	name: args.out_name,
 	dir: args.out_dir,
 }
 

@@ -37,11 +37,12 @@ const package = async (options) => {
 	const target_version = options?.target?.version ?? process.version
 	const target_platform = options?.target?.platform ?? process.platform
 	const target_dir = Path.resolve(options?.target?.dir ?? '.')
-	const target_file = options?.target?.file ?? `${[
+	const target_name = options?.target?.name ?? [
 		project_name,
 		project_version,
 		target_platform,
-	].filter(Boolean).join('-')}.zip`
+	].filter(Boolean).join('-')
+	const target_file = `${target_name}.zip`
 
 
 	// Make sure the source directory exists
@@ -116,7 +117,7 @@ const package = async (options) => {
 
 		// Prepare bundle
 
-		const staging_dir = Path.join(tmp_dir, 'stage')
+		const staging_dir = Path.join(tmp_dir, target_name)
 		const bundle_dir = Path.join(staging_dir, 'bundle')
 		const project_dir = Path.join(bundle_dir, 'project')
 		await Fsp.mkdir(project_dir, { recursive: true })
@@ -138,7 +139,7 @@ const package = async (options) => {
 
 		// Zip up everything
 
-		await run([ zip, 'a', Path.join(target_dir, target_file), Path.join(staging_dir, '*') ])
+		await run([ zip, 'a', Path.join(target_dir, target_file), staging_dir ])
 	} finally {
 		try {
 			await Fsp.rm(tmp_dir, { recursive: true, force: true })
