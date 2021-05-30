@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+
+const args = (() => {
+	const Argparse = require('argparse')
+
+	const parser = new Argparse.ArgumentParser({
+		description: "zip up a node aplication",
+		add_help: true,
+	})
+
+	parser.add_argument('-i', '--in-dir', {
+		help: "The directory to bundle up (default: cwd)",
+	})
+
+	parser.add_argument('-o', '--out-file', {
+		help: "Name of output file (default: name-version-platform.zip)",
+	})
+
+	parser.add_argument('-d', '--out-dir', {
+		help: "Directory to place output file in (default: cwd)",
+	})
+
+	parser.add_argument('-t', '--target', {
+		help: "Node binary version to use (default: current)",
+	})
+
+	parser.add_argument('-p', '--platform', {
+		help: "Target platform for the bundle (default: current)",
+	})
+
+	return parser.parse_args()
+})()
+
+
+const { package } = require('../src')
+const Fs = require('fs')
+const Path = require('path')
+
+const dir = Path.resolve(args.in_dir ?? '.')
+const json_path = Path.join(dir, 'package.json')
+
+const package_json = JSON.parse(Fs.readFileSync(json_path))
+
+const project = {
+	path: dir,
+	name: Path.basename(package_json.name),
+	version: package_json.version,
+}
+
+const target = {
+	version: args.target,
+	platform: args.platform,
+	file: args.out_file,
+	dir: args.out_dir,
+}
+
+package({ project, target })

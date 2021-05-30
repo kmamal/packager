@@ -1,0 +1,18 @@
+{
+  "version": "0.0.0",
+  "name": "@kmamal/packager",
+  "description": "packager",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:kmamal/packager.git"
+  },
+  "main": "src/index.js",
+  "license": "MIT",
+  "dependencies": {
+    "7zip-bin": "^5.1.1",
+    "argparse": "^2.0.1",
+    "download": "^8.0.0",
+    "fs-extra": "^10.0.0",
+    "tar": "^6.1.0"
+  }
+}
