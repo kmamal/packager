@@ -91,8 +91,8 @@ const package = async (options) => {
 			npm_name = 'npm.cmd'
 			_node = node_name
 			_npm = npm_name
-			runner = 'cmd-runner.bat'
-			runner_ext = '.bat'
+			runner = 'cmd-runner.cmd'
+			runner_ext = '.cmd'
 			break
 		}
 		// No default
