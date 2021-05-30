@@ -1,34 +1,11 @@
 const Fsp = require('fs/promises')
+const Fse = require('fs-extra')
 const Path = require('path')
 const Os = require('os')
-const download = require('download')
 const { path7za: zip } = require('7zip-bin')
-const { spawn } = require('child_process')
 const Tar = require('tar')
-const Fse = require('fs-extra')
-
-const _run = async (command, args, options, callback) => {
-	const proc = spawn(command, args, options)
-	callback?.(proc)
-	await new Promise((resolve, reject) => {
-		proc.on('close', (code) => {
-			code ? reject(new Error(`exit code ${code}`)) : resolve()
-		})
-	})
-}
-
-const run = ([ command, ...args ], options = {}) => _run(
-	command,
-	args,
-	options,
-	(proc) => {
-		proc.stdout.on('data', (chunk) => { console.error(chunk.toString()) })
-		proc.stderr.on('data', (chunk) => { console.error(chunk.toString()) })
-	},
-)
-
-const base_url = 'https://nodejs.org/download/release'
-
+const { run } = require('./run')
+const { download } = require('./download')
 
 const package = async (options) => {
 	const project_path = Path.resolve(options?.project?.path ?? '.')
@@ -44,7 +21,6 @@ const package = async (options) => {
 	].filter(Boolean).join('-')
 	const target_file = `${target_name}.zip`
 
-
 	// Make sure the source directory exists
 
 	const directory = Path.resolve(project_path)
@@ -52,48 +28,48 @@ const package = async (options) => {
 
 	// Sort out platform-specific stuff
 
-	let node_archive
-	let _extracted_dir
+	let _node_release_archive
+	let _node_release_dir
 	let extract
 	let node_name
 	let npm_name
 	let _node
 	let _npm
-	let runner
-	let runner_ext
+	let _runner_src
+	let _runner_dst
 	switch (target_platform) {
 		case 'linux':
 		case 'darwin':
 		{
-			node_archive = `node-${target_version}-${target_platform}-x64.tar.xz`
-			_extracted_dir = node_archive.slice(0, -7)
-			extract = async (tmp_dir) => {
-				await run([ zip, 'x', node_archive ], { cwd: tmp_dir })
+			_node_release_archive = `node-${target_version}-${target_platform}-x64.tar.xz`
+			_node_release_dir = _node_release_archive.slice(0, -7)
+			extract = async (cwd) => {
+				await run([ zip, 'x', _node_release_archive ], { cwd })
 				await Tar.extract({
-					file: Path.join(tmp_dir, node_archive.slice(0, -3)),
-					cwd: tmp_dir,
+					file: Path.join(cwd, _node_release_archive.slice(0, -3)),
+					cwd,
 				})
 			}
 			node_name = 'node'
 			npm_name = 'npm'
 			_node = Path.join('bin', node_name)
 			_npm = Path.join('bin', npm_name)
-			runner = 'bash-runner.sh'
-			runner_ext = ''
+			_runner_src = 'bash-runner.sh'
+			_runner_dst = project_name
 			break
 		}
 		case 'win32': {
-			node_archive = `node-${target_version}-win-x64.7z`
-			_extracted_dir = node_archive.slice(0, -3)
-			extract = async (tmp_dir) => {
-				await run([ zip, 'x', node_archive ], { cwd: tmp_dir })
+			_node_release_archive = `node-${target_version}-win-x64.7z`
+			_node_release_dir = _node_release_archive.slice(0, -3)
+			extract = async (cwd) => {
+				await run([ zip, 'x', _node_release_archive ], { cwd })
 			}
 			node_name = 'node.exe'
 			npm_name = 'npm.cmd'
 			_node = node_name
 			_npm = npm_name
-			runner = 'cmd-runner.cmd'
-			runner_ext = '.cmd'
+			_runner_src = 'cmd-runner.cmd'
+			_runner_dst = `${project_name}.cmd`
 			break
 		}
 		// No default
@@ -101,35 +77,43 @@ const package = async (options) => {
 
 	let tmp_dir
 	try {
-		// Download and extract the node binaries
-
 		tmp_dir = await Fsp.mkdtemp(Path.join(Os.tmpdir(), 'packager-'))
 
-		const url = `${base_url}/${target_version}/${node_archive}`
-		console.error(`Downloading ${url}`)
-		await download(url, tmp_dir)
+		console.log("Working in", tmp_dir)
 
-		await extract(tmp_dir)
+		// Download and extract Node.js
 
-		const extracted_dir = Path.resolve(tmp_dir, _extracted_dir)
-		const node = Path.join(extracted_dir, _node)
-		const npm = Path.join(extracted_dir, _npm)
+		const base_url = 'https://nodejs.org/download/release'
+		const url = `${base_url}/${target_version}/${_node_release_archive}`
+		const download_dir = Path.join(tmp_dir, 'download')
+
+		console.error("Downloading", url)
+
+		const node_release_archive = Path.join(download_dir, _node_release_archive)
+		await download(url, node_release_archive)
+		await extract(download_dir)
+
+		const node_release_dir = Path.resolve(download_dir, _node_release_dir)
+		const node = Path.join(node_release_dir, _node)
+		const npm = Path.join(node_release_dir, _npm)
 
 		// Prepare bundle
 
-		const staging_dir = Path.join(tmp_dir, target_name)
-		const bundle_dir = Path.join(staging_dir, 'bundle')
+		const staging_dir = Path.join(tmp_dir, 'stage')
+		const root_dir = Path.join(staging_dir, target_name)
+		const bundle_dir = Path.join(root_dir, 'bundle')
 		const project_dir = Path.join(bundle_dir, 'project')
 		await Fsp.mkdir(project_dir, { recursive: true })
 
 		await Fse.copy(directory, project_dir)
-		await Fse.copy(node, Path.join(bundle_dir, node_name))
-		await Fsp.copyFile(
-			Path.join(__dirname, '..', 'runners', runner),
-			Path.join(staging_dir, `${project_name}${runner_ext}`),
-		)
+		await Fsp.copyFile(node, Path.join(bundle_dir, node_name))
+		const runner_src = Path.join(__dirname, '..', 'runners', _runner_src)
+		const runner_dst = Path.join(root_dir, _runner_dst)
+		await Fsp.copyFile(runner_src, runner_dst)
 
 		// Install new node_modules
+
+		console.log("Installing fresh node_modules")
 
 		await Fsp.rm(
 			Path.join(project_dir, 'node_modules'),
@@ -139,9 +123,11 @@ const package = async (options) => {
 
 		// Zip up everything
 
-		await run([ zip, 'a', Path.join(target_dir, target_file), staging_dir ])
+		await run([ zip, 'a', Path.join(target_dir, target_file), root_dir ])
 	} finally {
 		try {
+			console.log("Cleaning up")
+
 			await Fsp.rm(tmp_dir, { recursive: true, force: true })
 		} catch (_) { }
 	}
