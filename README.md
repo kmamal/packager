@@ -42,11 +42,11 @@ The "executable" (`demo.cmd` in the above example) is a simple script the calls 
 
 ## Command Line Options
 
-#### -I, --in-dir INPUT_DIRECTORY
+#### -i, --in-dir INPUT_DIRECTORY
 
 By default, `packager` will bundle up the current directory. You can set this option to specify some other directory to bundle up. One common use-case is to specify a "staging" folder into which you have collected only the files you want to include in the release.
 
-#### -O, --out-dir OUTPUT_DIRECTORY
+#### -o, --out-dir OUTPUT_DIRECTORY
 
 By default, `packager` will place the resulting `.zip` file in the current directory. You can set this option to specify some other output directory.
 

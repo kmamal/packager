@@ -8,11 +8,11 @@ const args = (() => {
 		add_help: true,
 	})
 
-	parser.add_argument('-I', '--in-dir', {
+	parser.add_argument('-i', '--in-dir', {
 		help: "The directory to bundle up (default: cwd)",
 	})
 
-	parser.add_argument('-O', '--out-dir', {
+	parser.add_argument('-o', '--out-dir', {
 		help: "Directory to place output file in (default: cwd)",
 	})
 
