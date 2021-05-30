@@ -1,1 +1,1 @@
-# @kmamal/packaging
+# @kmamal/packager

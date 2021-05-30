@@ -7,6 +7,7 @@
     "url": "git@github.com:kmamal/packager.git"
   },
   "main": "src/index.js",
+  "bin": "./bin/packager",
   "license": "MIT",
   "dependencies": {
     "7zip-bin": "^5.1.1",
