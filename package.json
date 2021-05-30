@@ -1,7 +1,15 @@
 {
   "version": "0.0.7",
   "name": "@kmamal/packager",
-  "description": "packager",
+  "description": "Bundles a Node.js application into a self-contained zip archive",
+  "keywords": [
+    "package",
+    "packager",
+    "bundle",
+    "bundler",
+    "release",
+    "distribution"
+  ],
   "repository": {
     "type": "git",
     "url": "git@github.com:kmamal/packager.git"
