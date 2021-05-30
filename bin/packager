@@ -12,6 +12,10 @@ const args = (() => {
 		help: "The directory to bundle up (default: cwd)",
 	})
 
+	parser.add_argument('-I', '--include', {
+		help: "Pattern of files to include (default: **/*)",
+	})
+
 	parser.add_argument('-o', '--out-dir', {
 		help: "Directory to place output file in (default: cwd)",
 	})
@@ -45,6 +49,7 @@ const project = {
 	path: dir,
 	name: Path.basename(package_json.name),
 	version: package_json.version,
+	files: args.include,
 }
 
 const target = {

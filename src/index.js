@@ -1,5 +1,5 @@
 const Fsp = require('fs/promises')
-const Fse = require('fs-extra')
+const glob = require('globby')
 const Path = require('path')
 const Os = require('os')
 const { path7za: zip } = require('7zip-bin')
@@ -11,6 +11,7 @@ const package = async (options) => {
 	const project_path = Path.resolve(options?.project?.path ?? '.')
 	const project_name = options?.project?.name ?? Path.basename(Path.dirname(project_path))
 	const project_version = options?.project?.version
+	const project_files = JSON.parse(options?.project?.files ?? '**/*')
 	const target_version = options?.target?.version ?? process.version
 	const target_platform = options?.target?.platform ?? process.platform
 	const target_dir = Path.resolve(options?.target?.dir ?? '.')
@@ -87,7 +88,7 @@ const package = async (options) => {
 		const url = `${base_url}/${target_version}/${_node_release_archive}`
 		const download_dir = Path.join(tmp_dir, 'download')
 
-		console.error("Downloading", url)
+		console.log("Downloading", url)
 
 		const node_release_archive = Path.join(download_dir, _node_release_archive)
 		await download(url, node_release_archive)
@@ -105,11 +106,23 @@ const package = async (options) => {
 		const project_dir = Path.join(bundle_dir, 'project')
 		await Fsp.mkdir(project_dir, { recursive: true })
 
-		await Fse.copy(directory, project_dir)
-		await Fsp.copyFile(node, Path.join(bundle_dir, node_name))
+		const promises = []
+		const files = await glob(project_files, { cwd: directory })
+		for (const _file of files) {
+			const src = Path.join(directory, _file)
+			const dst = Path.join(project_dir, _file)
+			promises.push((async () => {
+				await Fsp.mkdir(Path.dirname(dst), { recursive: true })
+				await Fsp.copyFile(src, dst)
+			})())
+		}
+
+		promises.push(Fsp.copyFile(node, Path.join(bundle_dir, node_name)))
 		const runner_src = Path.join(__dirname, '..', 'runners', _runner_src)
 		const runner_dst = Path.join(root_dir, _runner_dst)
-		await Fsp.copyFile(runner_src, runner_dst)
+		promises.push(Fsp.copyFile(runner_src, runner_dst))
+
+		await Promise.all(promises)
 
 		// Install new node_modules
 
@@ -123,7 +136,9 @@ const package = async (options) => {
 
 		// Zip up everything
 
-		await run([ zip, 'a', Path.join(target_dir, target_file), root_dir ])
+		const out_file = Path.join(target_dir, target_file)
+		try { await Fsp.unlink(out_file) } catch (_) { }
+		await run([ zip, 'a', out_file, root_dir ])
 	} finally {
 		try {
 			console.log("Cleaning up")

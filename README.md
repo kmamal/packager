@@ -44,11 +44,15 @@ The "executable" (`demo.cmd` in the above example) is a simple script the calls 
 
 #### -i, --in-dir INPUT_DIRECTORY
 
-By default, `packager` will bundle up the current directory. You can set this option to specify some other directory to bundle up. One common use-case is to specify a "staging" folder into which you have collected only the files you want to include in the release.
+By default, the current directory will be bundled. You can set this option to specify some other directory to bundle up. One common use-case is to specify a "staging" folder into which you have collected only the files you want to include in the release.
+
+#### -I, --include PATTERN
+
+By default, all the files in the input directory will be included (or, more accurately, anything matched by `**/*`). You can set this option to specify a set of patterns that will be passed to [`globby`](https://www.npmjs.com/package/globby). For example `-I '["src/**/*.js", "assets/**/*", "package*.json"]'` will include all the `.js` files in `src/`, all the files in `assets/` and the `package.json` and `package-lock.json` files.
 
 #### -o, --out-dir OUTPUT_DIRECTORY
 
-By default, `packager` will place the resulting `.zip` file in the current directory. You can set this option to specify some other output directory.
+By default, the resulting `.zip` file will be placed in the current directory. You can set this option to specify some other output directory.
 
 #### -n, --out-name OUTPUT_NAME
 
