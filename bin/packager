@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
+require('child_process').execSync('npm i --no-audit', { cwd: __dirname })
+
 const args = (() => {
 	const Argparse = require('argparse')
 
 	const parser = new Argparse.ArgumentParser({
 		description: "zip up a node aplication",
-		add_help: true,
+		add_help: true, // eslint-disable-line camelcase
+	})
+
+	parser.add_argument('-v', '--version', {
+		action: 'version',
+		version: `${parser.prog} v${require('../package.json').version}`,
+		help: "Print version and exit",
 	})
 
 	parser.add_argument('-i', '--in-dir', {
@@ -36,19 +44,19 @@ const args = (() => {
 })()
 
 
-const { package } = require('../src')
+const { pack } = require('../src')
 const Fs = require('fs')
 const Path = require('path')
 
 const dir = Path.resolve(args.in_dir ?? '.')
-const json_path = Path.join(dir, 'package.json')
+const jsonPath = Path.join(dir, 'package.json')
 
-const package_json = JSON.parse(Fs.readFileSync(json_path))
+const packageJson = JSON.parse(Fs.readFileSync(jsonPath))
 
 const project = {
 	path: dir,
-	name: Path.basename(package_json.name),
-	version: package_json.version,
+	name: Path.basename(packageJson.name),
+	version: packageJson.version,
 	files: args.include,
 }
 
@@ -59,4 +67,4 @@ const target = {
 	dir: args.out_dir,
 }
 
-package({ project, target })
+pack({ project, target })
