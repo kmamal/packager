@@ -134,7 +134,7 @@ const pack = async (options) => {
 			Path.join(projectDir, 'node_modules'),
 			{ recursive: true, force: true },
 		)
-		await run([ npm, 'install' ], { cwd: projectDir })
+		await run([ npm, 'install', '--production' ], { cwd: projectDir })
 
 		// Zip up everything
 
