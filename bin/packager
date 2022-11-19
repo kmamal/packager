@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-require('child_process').execSync('npm i --no-audit', { cwd: __dirname })
-
 const args = (() => {
 	const Argparse = require('argparse')
 
@@ -57,7 +55,7 @@ const project = {
 	path: dir,
 	name: Path.basename(packageJson.name),
 	version: packageJson.version,
-	files: args.include,
+	files: args.include ? JSON.parse(args.include) : null,
 }
 
 const target = {

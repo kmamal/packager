@@ -1,5 +1,4 @@
-const Fsp = require('fs/promises')
-const glob = require('globby')
+const Fs = require('fs/promises')
 const Path = require('path')
 const Os = require('os')
 const { path7za: zip } = require('7zip-bin')
@@ -11,7 +10,7 @@ const pack = async (options) => {
 	const projectPath = Path.resolve(options?.project?.path ?? '.')
 	const projectName = options?.project?.name ?? Path.basename(Path.dirname(projectPath))
 	const projectVersion = options?.project?.version
-	const projectFiles = JSON.parse(options?.project?.files ?? '**/*')
+	const projectFiles = options?.project?.files ?? '**/*'
 	const targetVersion = options?.target?.version ?? process.version
 	const targetPlatform = options?.target?.platform ?? process.platform
 	const targetDir = Path.resolve(options?.target?.dir ?? '.')
@@ -25,7 +24,7 @@ const pack = async (options) => {
 	// Make sure the source directory exists
 
 	const directory = Path.resolve(projectPath)
-	Fsp.access(directory)
+	Fs.access(directory)
 
 	// Sort out platform-specific stuff
 
@@ -45,6 +44,7 @@ const pack = async (options) => {
 			_nodeReleaseArchive = `node-${targetVersion}-${targetPlatform}-x64.tar.xz`
 			_nodeReleaseDir = _nodeReleaseArchive.slice(0, -7)
 			extract = async (cwd) => {
+				await Fs.chmod(zip, 0o777)
 				await run([ zip, 'x', _nodeReleaseArchive ], { cwd })
 				await Tar.extract({
 					file: Path.join(cwd, _nodeReleaseArchive.slice(0, -3)),
@@ -78,7 +78,7 @@ const pack = async (options) => {
 
 	let tmpDir
 	try {
-		tmpDir = await Fsp.mkdtemp(Path.join(Os.tmpdir(), 'packager-'))
+		tmpDir = await Fs.mkdtemp(Path.join(Os.tmpdir(), 'packager-'))
 
 		console.log("Working in", tmpDir)
 
@@ -104,23 +104,25 @@ const pack = async (options) => {
 		const rootDir = Path.join(stagingDir, targetName)
 		const bundleDir = Path.join(rootDir, 'bundle')
 		const projectDir = Path.join(bundleDir, 'project')
-		await Fsp.mkdir(projectDir, { recursive: true })
+		await Fs.mkdir(projectDir, { recursive: true })
+
+		const { globby } = await import('globby')
 
 		const promises = []
-		const files = await glob(projectFiles, { cwd: directory })
+		const files = await globby(projectFiles, { cwd: directory })
 		for (const File of files) {
 			const src = Path.join(directory, File)
 			const dst = Path.join(projectDir, File)
 			promises.push((async () => {
-				await Fsp.mkdir(Path.dirname(dst), { recursive: true })
-				await Fsp.copyFile(src, dst)
+				await Fs.mkdir(Path.dirname(dst), { recursive: true })
+				await Fs.copyFile(src, dst)
 			})())
 		}
 
-		promises.push(Fsp.copyFile(node, Path.join(bundleDir, nodeName)))
+		promises.push(Fs.copyFile(node, Path.join(bundleDir, nodeName)))
 		const runnerSrc = Path.join(__dirname, '../runners', _runnerSrc)
 		const runnerDst = Path.join(rootDir, _runnerDst)
-		promises.push(Fsp.copyFile(runnerSrc, runnerDst))
+		promises.push(Fs.copyFile(runnerSrc, runnerDst))
 
 		await Promise.all(promises)
 
@@ -128,7 +130,7 @@ const pack = async (options) => {
 
 		console.log("Installing fresh node_modules")
 
-		await Fsp.rm(
+		await Fs.rm(
 			Path.join(projectDir, 'node_modules'),
 			{ recursive: true, force: true },
 		)
@@ -137,13 +139,13 @@ const pack = async (options) => {
 		// Zip up everything
 
 		const outFile = Path.join(targetDir, targetFile)
-		try { await Fsp.unlink(outFile) } catch (_) { }
+		try { await Fs.unlink(outFile) } catch (_) { }
 		await run([ zip, 'a', outFile, rootDir ])
 	} finally {
 		try {
 			console.log("Cleaning up")
 
-			await Fsp.rm(tmpDir, { recursive: true, force: true })
+			await Fs.rm(tmpDir, { recursive: true, force: true })
 		} catch (_) { }
 	}
 }
