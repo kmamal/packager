@@ -14,6 +14,10 @@ const args = (() => {
 		help: "Print version and exit",
 	})
 
+	parser.add_argument('-a', '--arch', {
+		help: "Target architecture for the bundle (default: process.arch)",
+	})
+
 	parser.add_argument('-i', '--in-dir', {
 		help: "The directory to bundle up (default: cwd)",
 	})
@@ -38,11 +42,11 @@ const args = (() => {
 	})
 
 	parser.add_argument('-t', '--target', {
-		help: "Node binary version to use (default: current)",
+		help: "Node binary version to use (default: process.version)",
 	})
 
 	parser.add_argument('-p', '--platform', {
-		help: "Target platform for the bundle (default: current)",
+		help: "Target platform for the bundle (default: process.platform)",
 	})
 
 	parser.add_argument('-u', '--unzip', {
@@ -65,6 +69,7 @@ pack({
 	target: {
 		version: args.target,
 		platform: args.platform,
+		arch: args.arch,
 		name: args.out_name,
 		dir: args.out_dir,
 		flags: args.flag,

@@ -45,11 +45,13 @@ const pack = async (options) => {
 
 	const targetVersion = target.version ?? process.version
 	const targetPlatform = target.platform ?? process.platform
+	const targetArch = target.arch ?? process.arch
 	const targetDir = Path.resolve(target.dir ?? '.')
 	const targetName = target.name ?? [
 		projectName,
 		projectVersion,
 		targetPlatform,
+		targetArch,
 	].filter(Boolean).join('-')
 	const targetFlags = (target.flags ?? []).map((flag) => flag.trim())
 	const targetShouldZip = target.shouldZip
@@ -70,7 +72,7 @@ const pack = async (options) => {
 		case 'linux':
 		case 'darwin':
 		{
-			nodeReleaseArchiveName = `node-${targetVersion}-${targetPlatform}-x64.tar.xz`
+			nodeReleaseArchiveName = `node-${targetVersion}-${targetPlatform}-${targetArch}.tar.xz`
 			nodeReleaseDirName = nodeReleaseArchiveName.slice(0, -'.tar.xz'.length)
 			fnExtract = async (cwd) => {
 				await Fs.promises.chmod(zip, 0o700)
@@ -89,7 +91,7 @@ const pack = async (options) => {
 			break
 		}
 		case 'win32': {
-			nodeReleaseArchiveName = `node-${targetVersion}-win-x64.7z`
+			nodeReleaseArchiveName = `node-${targetVersion}-win-${targetArch}.7z`
 			nodeReleaseDirName = nodeReleaseArchiveName.slice(0, -3)
 			fnExtract = async (cwd) => {
 				await run([ zip, 'x', nodeReleaseArchiveName ], { cwd })

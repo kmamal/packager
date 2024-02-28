@@ -7,8 +7,6 @@
 Bundles a Node.js application into a self-contained zip.
 Useful when you want to distribute your application without requiring your users to install node/npm first.
 
-It should work on Linux, Mac, and Windows.
-
 
 ## Installation
 
@@ -27,12 +25,12 @@ Inside your project root run:
 npx packager --out-dir dist
 ```
 
-This should produce a folder named `dist/` with a `.zip` file inside it named `{name}-{version}-{platform}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` is equal to `process.platform` in Node.js.
+This should produce a folder named `dist/` with a `.zip` file inside it named `{name}-{version}-{platform}-{arch}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` is equal to `process.platform` in Node.js.
 
 The folder structure inside the archive is:
 
 ```
- demo-1.2.3-win32/
+ demo-1.2.3-win32-x64/
  ├─ demo.cmd         # executable
  └─ bundle/
     ├─ node.exe      # node binary
@@ -49,6 +47,14 @@ The `.cmd` extension is only for Windows bundles. On Linux and Mac it would be c
 
 ## Command Line Options
 
+#### -a, --arch ARCH
+
+By default, `packager` will create a bundle for the current architecture, as per `process.arch`.
+You can set this option to create a bundle for some other architecture, simply by downloading and bundling the node binary for that platform.
+
+**WARNING:** This will of course fail if some of your dependencies are platform-specific (for example, native bindings downloaded into `node_modules`).
+It's usually safer to build each bundle on its corresponding host (for example via [GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-running-with-more-than-one-operating-system)).
+
 #### -i, --in-dir INPUT_DIRECTORY
 
 By default, the current directory will be bundled.
@@ -59,7 +65,7 @@ One common use-case is to specify a "staging" folder into which you have collect
 
 By default, all the files in the input directory will be included (or, more accurately, anything matched by `**/*`).
 You can set this option (one or multiple times) to specify a different set of patterns.
-The resulting list of patterns will be passed to that will be passed as an argument to [`globby`](https://www.npmjs.com/package/globby).
+The resulting list of patterns will be passed as an argument to [`globby`](https://www.npmjs.com/package/globby).
 For example `-I 'src/**/*.js' -I 'assets/**/*' -I 'package*.json'` will include all the `.js` files in `src/`, all the files in `assets/` and the `package.json` and `package-lock.json` files.
 
 #### -f, --flag FLAG
@@ -74,7 +80,7 @@ By default, the resulting `.zip` file will be placed in the current directory. Y
 
 #### -n, --out-name OUTPUT_NAME
 
-By default, the resulting `.zip` file will be named `{name}-{version}-{platform}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` is equal to `process.platform` in Node.js. You can set this option to name the output file something else. This only affects the part before the extension (the extension is always `.zip`) so for example if you set `-n package` the output file will be named `package.zip`.
+By default, the resulting `.zip` file will be named `{name}-{version}-{platform}-{arch}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` and `arch` are equal to `process.platform` and `process.arch` in Node.js. You can set this option to name the output file something else. This only affects the part before the extension (the extension is always `.zip`) so for example if you set `-n package` the output file will be named `package.zip`.
 
 #### -t, --target TARGET
 
@@ -82,15 +88,15 @@ By default, `packager` will include the currently installed node version in the 
 
 #### -p, --platform PLATFORM
 
-By default, `packager` will create a bundle for the current platform (`'linux'`, `'darwin'`, or `'win32'` as per `process.platform`).
+By default, `packager` will create a bundle for the current platform, as per `process.platform`.
 You can set this option to create a bundle for some other platform, simply by downloading and bundling the node binary for that platform.
 
 **WARNING:** This will of course fail if some of your dependencies are platform-specific (for example, native bindings downloaded into `node_modules`).
-It's usually safer to build each platform's bundle on its corresponding host (for example via [GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-running-with-more-than-one-operating-system)).
+It's usually safer to build each bundle on its corresponding host (for example via [GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-running-with-more-than-one-operating-system)).
 
 #### -u, --unzip
 
 By default, the bundle folder will be zipped to produce the final `.zip` file.
 You can pass this option to prevent the final zipping to take place.
 This can be useful if you want to further customize the output bundle yourself.
-So instead of getting a `demo-1.2.3-win32.zip` file in your output folder, you will instead get a `demo-1.2.3-win32` folder.
+So instead of getting a `demo-1.2.3-win32-x64.zip` file in your output folder, you will instead get a `demo-1.2.3-win32-x64` folder.
