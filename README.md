@@ -2,15 +2,15 @@
 
 [![Package](https://img.shields.io/npm/v/%2540kmamal%252Fpackager)](https://www.npmjs.com/package/@kmamal/packager)
 [![Dependencies](https://img.shields.io/librariesio/release/npm/@kmamal/packager)](https://libraries.io/npm/@kmamal%2Fpackager)
-[![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/npm/%2540kmamal%252Fpackager)](https://snyk.io/test/npm/@kmamal/packager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Bundles a Node.js application into a self-contained zip archive. Useful when you want to distribute your application without requiring your users to install node/npm first.
+Bundles a Node.js application into a self-contained zip.
+Useful when you want to distribute your application without requiring your users to install node/npm first.
 
-Should work for x64 Linux, Mac, and Windows.
+It should work on Linux, Mac, and Windows.
 
 
-## Usage
+## Installation
 
 Install with:
 
@@ -18,7 +18,10 @@ Install with:
 npm i --save-dev @kmamal/packager
 ```
 
-Then inside your project root run:
+
+## Usage
+
+Inside your project root run:
 
 ```bash
 npx packager --out-dir dist
@@ -37,22 +40,37 @@ The folder structure inside the archive is:
        ├─ ...        # all the files from the input directory
 ```
 
-The "executable" (`demo.cmd` in the above example) is a simple script the calls the equivalent of `node project/`, and should work no matter which directory it is called from. Make sure your `package.json` has a `"main"` entrypoint set, otherwise it won't work. The `.cmd` extension is only for Windows bundles. On Linux and Mac it would be called just `demo`.
+The "executable" (`demo.cmd` in the above example) is a simple script the calls the equivalent of `node.exe project/`, and should work no matter which directory it is called from.
+
+**Note:** Make sure your `package.json` has a `"main"` entrypoint set, otherwise it won't work.
+
+The `.cmd` extension is only for Windows bundles. On Linux and Mac it would be called just `demo`.
 
 
 ## Command Line Options
 
 #### -i, --in-dir INPUT_DIRECTORY
 
-By default, the current directory will be bundled. You can set this option to specify some other directory to bundle up. One common use-case is to specify a "staging" folder into which you have collected only the files you want to include in the release.
+By default, the current directory will be bundled.
+You can set this option to specify some other directory to bundle up.
+One common use-case is to specify a "staging" folder into which you have collected only the files you want to include in the release.
 
 #### -I, --include PATTERN
 
-By default, all the files in the input directory will be included (or, more accurately, anything matched by `**/*`). You can set this option to specify a set of patterns that will be passed to [`globby`](https://www.npmjs.com/package/globby). For example `-I '["src/**/*.js", "assets/**/*", "package*.json"]'` will include all the `.js` files in `src/`, all the files in `assets/` and the `package.json` and `package-lock.json` files.
+By default, all the files in the input directory will be included (or, more accurately, anything matched by `**/*`).
+You can set this option (one or multiple times) to specify a different set of patterns.
+The resulting list of patterns will be passed to that will be passed as an argument to [`globby`](https://www.npmjs.com/package/globby).
+For example `-I 'src/**/*.js' -I 'assets/**/*' -I 'package*.json'` will include all the `.js` files in `src/`, all the files in `assets/` and the `package.json` and `package-lock.json` files.
+
+#### -f, --flag FLAG
+
+By default, the Node.js executable will be called like `node <project>`, with no command-line flags.
+You can set this option (one or multiple times) each time passing a flag as the argument that will be forwarded to Node.js.
+For example `-f --experimental-network-imports` will make the final executable invoke node like `node --experimental-network-imports <project>`.
 
 #### -o, --out-dir OUTPUT_DIRECTORY
 
-By default, the resulting `.zip` file will be placed in the current directory. You can set this option to specify some other output directory.
+By default, the resulting `.zip` file will be placed in the current directory. You can set this option to specify some other output directory. If it does not exist it will be created.
 
 #### -n, --out-name OUTPUT_NAME
 
@@ -64,4 +82,15 @@ By default, `packager` will include the currently installed node version in the 
 
 #### -p, --platform PLATFORM
 
-By default, `packager` will create a bundle for the current platform (`'linux'`, `'darwin'`, or `'win32'` as per `process.platform`). You can set this option to create a bundle for some other platform, simply by downloading and bundling the node binary for that platform. __WARNING:__ This will of course fail if some of your dependencies are platform-specific (for example, native bindings downloaded into `node_modules`). It's usually safer to build each platform's bundle on its corresponding host (for example via [GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-running-with-more-than-one-operating-system)).
+By default, `packager` will create a bundle for the current platform (`'linux'`, `'darwin'`, or `'win32'` as per `process.platform`).
+You can set this option to create a bundle for some other platform, simply by downloading and bundling the node binary for that platform.
+
+**WARNING:** This will of course fail if some of your dependencies are platform-specific (for example, native bindings downloaded into `node_modules`).
+It's usually safer to build each platform's bundle on its corresponding host (for example via [GitHub Actions](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-running-with-more-than-one-operating-system)).
+
+#### -u, --unzip
+
+By default, the bundle folder will be zipped to produce the final `.zip` file.
+You can pass this option to prevent the final zipping to take place.
+This can be useful if you want to further customize the output bundle yourself.
+So instead of getting a `demo-1.2.3-win32.zip` file in your output folder, you will instead get a `demo-1.2.3-win32` folder.

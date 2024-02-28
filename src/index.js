@@ -1,76 +1,105 @@
-const Fs = require('fs/promises')
-const Path = require('path')
-const Os = require('os')
+const Fs = require('node:fs')
+const Path = require('node:path')
+const Os = require('node:os')
 const { path7za: zip } = require('7zip-bin')
 const Tar = require('tar')
-const { run } = require('./run')
-const { download } = require('./download')
+const { run } = require('./util/run.js')
+const { download } = require('./util/download.js')
+const Ejs = require('ejs')
+
 
 const pack = async (options) => {
-	const projectPath = Path.resolve(options?.project?.path ?? '.')
-	const projectName = options?.project?.name ?? Path.basename(Path.dirname(projectPath))
-	const projectVersion = options?.project?.version
-	const projectFiles = options?.project?.files ?? '**/*'
-	const targetVersion = options?.target?.version ?? process.version
-	const targetPlatform = options?.target?.platform ?? process.platform
-	const targetDir = Path.resolve(options?.target?.dir ?? '.')
-	const targetName = options?.target?.name ?? [
+	const { project = {}, target = {} } = options ?? {}
+
+	// Determine input dir and make sure it exists.
+
+	const projectPath = Path.resolve(project.path ?? '.')
+
+	let stats
+	try {
+		stats = await Fs.promises.stat(projectPath)
+	} catch (error) {
+		console.error("Failed to find input dir!")
+	}
+	if (!stats.isDirectory()) {
+		console.error("Input path is not a directory!")
+		throw new Error(`Path "${projectPath}" is not a directory`)
+	}
+
+	// Try to load the project's `package.json` file
+
+	let packageJson
+	try {
+		const packageJsonPath = Path.join(projectPath, 'package.json')
+		packageJson = JSON.parse(await Fs.promises.readFile(packageJsonPath))
+	} catch (error) {
+		if (error.code !== 'ENOENT') { throw error }
+		packageJson = {}
+	}
+
+	// Determine the rest of the params
+
+	const projectName = project.name ?? Path.basename(packageJson.name ?? projectPath)
+	const projectVersion = project.version ?? packageJson.version ?? '0.0.0'
+	const projectFiles = project.files ?? '**/*'
+
+	const targetVersion = target.version ?? process.version
+	const targetPlatform = target.platform ?? process.platform
+	const targetDir = Path.resolve(target.dir ?? '.')
+	const targetName = target.name ?? [
 		projectName,
 		projectVersion,
 		targetPlatform,
 	].filter(Boolean).join('-')
-	const targetFile = `${targetName}.zip`
-
-	// Make sure the source directory exists
-
-	const directory = Path.resolve(projectPath)
-	Fs.access(directory)
+	const targetFlags = (target.flags ?? []).map((flag) => flag.trim())
+	const targetShouldZip = target.shouldZip
+	const targetZipFileName = `${targetName}.zip`
 
 	// Sort out platform-specific stuff
 
-	let _nodeReleaseArchive
-	let _nodeReleaseDir
-	let extract
+	let nodeReleaseArchiveName
+	let nodeReleaseDirName
+	let fnExtract
 	let nodeName
 	let npmName
-	let _node
-	let _npm
-	let _runnerSrc
-	let _runnerDst
+	let nodeBinName
+	let npmBinName
+	let runnerSrcName
+	let runnerDstName
 	switch (targetPlatform) {
 		case 'linux':
 		case 'darwin':
 		{
-			_nodeReleaseArchive = `node-${targetVersion}-${targetPlatform}-x64.tar.xz`
-			_nodeReleaseDir = _nodeReleaseArchive.slice(0, -7)
-			extract = async (cwd) => {
-				await Fs.chmod(zip, 0o777)
-				await run([ zip, 'x', _nodeReleaseArchive ], { cwd })
+			nodeReleaseArchiveName = `node-${targetVersion}-${targetPlatform}-x64.tar.xz`
+			nodeReleaseDirName = nodeReleaseArchiveName.slice(0, -'.tar.xz'.length)
+			fnExtract = async (cwd) => {
+				await Fs.promises.chmod(zip, 0o700)
+				await run([ zip, 'x', nodeReleaseArchiveName ], { cwd })
 				await Tar.extract({
-					file: Path.join(cwd, _nodeReleaseArchive.slice(0, -3)),
+					file: Path.join(cwd, nodeReleaseArchiveName.slice(0, -'.xz'.length)),
 					cwd,
 				})
 			}
 			nodeName = 'node'
 			npmName = 'npm'
-			_node = Path.join('bin', nodeName)
-			_npm = Path.join('bin', npmName)
-			_runnerSrc = 'bash-runner.sh'
-			_runnerDst = projectName
+			nodeBinName = Path.join('bin', nodeName)
+			npmBinName = Path.join('bin', npmName)
+			runnerSrcName = 'bash-runner.sh.ejs'
+			runnerDstName = projectName
 			break
 		}
 		case 'win32': {
-			_nodeReleaseArchive = `node-${targetVersion}-win-x64.7z`
-			_nodeReleaseDir = _nodeReleaseArchive.slice(0, -3)
-			extract = async (cwd) => {
-				await run([ zip, 'x', _nodeReleaseArchive ], { cwd })
+			nodeReleaseArchiveName = `node-${targetVersion}-win-x64.7z`
+			nodeReleaseDirName = nodeReleaseArchiveName.slice(0, -3)
+			fnExtract = async (cwd) => {
+				await run([ zip, 'x', nodeReleaseArchiveName ], { cwd })
 			}
 			nodeName = 'node.exe'
 			npmName = 'npm.cmd'
-			_node = nodeName
-			_npm = npmName
-			_runnerSrc = 'cmd-runner.cmd'
-			_runnerDst = `${projectName}.cmd`
+			nodeBinName = nodeName
+			npmBinName = npmName
+			runnerSrcName = 'cmd-runner.cmd.ejs'
+			runnerDstName = `${projectName}.cmd`
 			break
 		}
 		// No default
@@ -78,74 +107,118 @@ const pack = async (options) => {
 
 	let tmpDir
 	try {
-		tmpDir = await Fs.mkdtemp(Path.join(Os.tmpdir(), 'packager-'))
+		tmpDir = await Fs.promises.mkdtemp(Path.join(Os.tmpdir(), 'packager-'))
 
 		console.log("Working in", tmpDir)
 
 		// Download and extract Node.js
 
 		const baseUrl = 'https://nodejs.org/download/release'
-		const url = `${baseUrl}/${targetVersion}/${_nodeReleaseArchive}`
+		const url = `${baseUrl}/${targetVersion}/${nodeReleaseArchiveName}`
 		const downloadDir = Path.join(tmpDir, 'download')
 
 		console.log("Downloading", url)
 
-		const nodeReleaseArchive = Path.join(downloadDir, _nodeReleaseArchive)
-		await download(url, nodeReleaseArchive)
-		await extract(downloadDir)
+		const nodeReleaseArchivePath = Path.join(downloadDir, nodeReleaseArchiveName)
+		try {
+			await download(url, nodeReleaseArchivePath)
+		} catch (error) {
+			console.error("Download failed!")
+			throw error
+		}
 
-		const nodeReleaseDir = Path.resolve(downloadDir, _nodeReleaseDir)
-		const node = Path.join(nodeReleaseDir, _node)
-		const npm = Path.join(nodeReleaseDir, _npm)
+		console.log("Extracting", nodeReleaseArchiveName)
+
+		try {
+			await fnExtract(downloadDir)
+		} catch (error) {
+			console.error("Extract failed!")
+			throw error
+		}
+
+		const nodeReleaseDirPath = Path.resolve(downloadDir, nodeReleaseDirName)
+		const nodeBinPath = Path.join(nodeReleaseDirPath, nodeBinName)
+		const npmBinPath = Path.join(nodeReleaseDirPath, npmBinName)
 
 		// Prepare bundle
 
+		console.log("Packaging", projectPath)
+
 		const stagingDir = Path.join(tmpDir, 'stage')
-		const rootDir = Path.join(stagingDir, targetName)
-		const bundleDir = Path.join(rootDir, 'bundle')
-		const projectDir = Path.join(bundleDir, 'project')
-		await Fs.mkdir(projectDir, { recursive: true })
+		const outRootDir = Path.join(stagingDir, targetName)
+		const outBundleDir = Path.join(outRootDir, 'bundle')
+		const outProjectDir = Path.join(outBundleDir, 'project')
 
-		const { globby } = await import('globby')
+		try {
+			await Fs.promises.mkdir(outProjectDir, { recursive: true })
 
-		const promises = []
-		const files = await globby(projectFiles, { cwd: directory })
-		for (const File of files) {
-			const src = Path.join(directory, File)
-			const dst = Path.join(projectDir, File)
-			promises.push((async () => {
-				await Fs.mkdir(Path.dirname(dst), { recursive: true })
-				await Fs.copyFile(src, dst)
-			})())
+			await Promise.all([
+
+				// Copy the Node.js binary
+				Fs.promises.cp(nodeBinPath, Path.join(outBundleDir, nodeName)),
+
+				// Render and copy the "executable" script from its template
+				(async () => {
+					const runnerSrcPath = Path.join(__dirname, '../runner-templates', runnerSrcName)
+					const runnerTemplate = await Fs.promises.readFile(runnerSrcPath, { encoding: 'utf8' })
+					const runnerCode = Ejs.render(runnerTemplate, { flags: targetFlags.join(' ') })
+					const runnerDstPath = Path.join(outRootDir, runnerDstName)
+					await Fs.promises.writeFile(runnerDstPath, runnerCode)
+
+					if (targetPlatform !== 'win32') {
+						await Fs.promises.chmod(runnerDstPath, 0o755)
+					}
+				})(),
+
+				// Find and copy all the project files
+				import('globby').then(async ({ globby }) => {
+					const promises = []
+
+					const files = await globby(projectFiles, { cwd: projectPath })
+					for (const file of files) {
+						const src = Path.join(projectPath, file)
+						const dst = Path.join(outProjectDir, file)
+						promises.push((async () => {
+							await Fs.promises.mkdir(Path.dirname(dst), { recursive: true })
+							await Fs.promises.cp(src, dst)
+						})())
+					}
+
+					await Promise.all(promises)
+				}),
+			])
+		} catch (error) {
+			console.error("Packaging failed!")
+			throw error
 		}
-
-		promises.push(Fs.copyFile(node, Path.join(bundleDir, nodeName)))
-		const runnerSrc = Path.join(__dirname, '../runners', _runnerSrc)
-		const runnerDst = Path.join(rootDir, _runnerDst)
-		promises.push(Fs.copyFile(runnerSrc, runnerDst))
-
-		await Promise.all(promises)
 
 		// Install new node_modules
 
 		console.log("Installing fresh node_modules")
 
-		await Fs.rm(
-			Path.join(projectDir, 'node_modules'),
+		await Fs.promises.rm(
+			Path.join(outProjectDir, 'node_modules'),
 			{ recursive: true, force: true },
 		)
-		await run([ npm, 'install', '--production' ], { cwd: projectDir })
+		await run([ npmBinPath, 'install', '--omit=dev' ], { cwd: outProjectDir })
 
-		// Zip up everything
+		// Copy results to output dir
 
-		const outFile = Path.join(targetDir, targetFile)
-		try { await Fs.unlink(outFile) } catch (_) { }
-		await run([ zip, 'a', outFile, rootDir ])
+		await Fs.promises.mkdir(targetDir, { recursive: true })
+		if (targetShouldZip) {
+			// Zip up everything
+			const targetZipFilePath = Path.join(targetDir, targetZipFileName)
+			try { await Fs.promises.rm(targetZipFilePath) } catch (_) { }
+			await run([ zip, 'a', targetZipFilePath, outRootDir ])
+		} else {
+			// Copy the dir as-is
+			await Fs.promises.rename(outRootDir, Path.join(targetDir, targetName))
+		}
 	} finally {
 		try {
 			console.log("Cleaning up")
 
-			await Fs.rm(tmpDir, { recursive: true, force: true })
+			await Fs.promises.rm(tmpDir, { recursive: true, force: true })
 		} catch (_) { }
 	}
 }

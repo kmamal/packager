@@ -20,6 +20,13 @@ const args = (() => {
 
 	parser.add_argument('-I', '--include', {
 		help: "Pattern of files to include (default: **/*)",
+		action: 'append',
+	})
+
+	parser.add_argument('-f', '--flag', {
+		help: "A flag that should be passed to Node.js",
+		default: [],
+		action: 'append',
 	})
 
 	parser.add_argument('-o', '--out-dir', {
@@ -38,31 +45,29 @@ const args = (() => {
 		help: "Target platform for the bundle (default: current)",
 	})
 
+	parser.add_argument('-u', '--unzip', {
+		help: "Don't zip up the bundled folder",
+		default: false,
+		action: 'store_true',
+	})
+
 	return parser.parse_args()
 })()
 
 
 const { pack } = require('../src')
-const Fs = require('fs')
-const Path = require('path')
 
-const dir = Path.resolve(args.in_dir ?? '.')
-const jsonPath = Path.join(dir, 'package.json')
-
-const packageJson = JSON.parse(Fs.readFileSync(jsonPath))
-
-const project = {
-	path: dir,
-	name: Path.basename(packageJson.name),
-	version: packageJson.version,
-	files: args.include ? JSON.parse(args.include) : null,
-}
-
-const target = {
-	version: args.target,
-	platform: args.platform,
-	name: args.out_name,
-	dir: args.out_dir,
-}
-
-pack({ project, target })
+pack({
+	project: {
+		path: args.in_dir,
+		files: args.include,
+	},
+	target: {
+		version: args.target,
+		platform: args.platform,
+		name: args.out_name,
+		dir: args.out_dir,
+		flags: args.flag,
+		shouldZip: !args.unzip,
+	},
+})
