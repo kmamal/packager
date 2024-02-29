@@ -161,7 +161,7 @@ const pack = async (options) => {
 
 				// Render and copy the "executable" script from its template
 				(async () => {
-					const runnerSrcPath = Path.join(__dirname, '../runner-templates', runnerSrcName)
+					const runnerSrcPath = Path.join(__dirname, '../runners', runnerSrcName)
 					const runnerTemplate = await Fs.promises.readFile(runnerSrcPath, { encoding: 'utf8' })
 					const runnerCode = Ejs.render(runnerTemplate, { flags: targetFlags.join(' ') })
 					const runnerDstPath = Path.join(outRootDir, runnerDstName)
@@ -169,6 +169,11 @@ const pack = async (options) => {
 
 					if (targetPlatform !== 'win32') {
 						await Fs.promises.chmod(runnerDstPath, 0o755)
+					} else {
+						await Fs.promises.cp(
+							Path.join(__dirname, '../runners/vba-runner.vbs'),
+							runnerDstPath.replace(/cmd$/u, 'vbs'),
+						)
 					}
 				})(),
 

@@ -25,7 +25,7 @@ Inside your project root run:
 npx packager --out-dir dist
 ```
 
-This should produce a folder named `dist/` with a `.zip` file inside it named `{name}-{version}-{platform}-{arch}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` is equal to `process.platform` in Node.js.
+This should produce a folder named `dist/` with a `.zip` file inside it named `{name}-{version}-{platform}-{arch}.zip` where `name` and `version` are taken from the `package.json` file, and `platform` and `arch` are equal to `process.platform` and `process.arch` in Node.js.
 
 The folder structure inside the archive is:
 
@@ -72,7 +72,7 @@ For example `-I 'src/**/*.js' -I 'assets/**/*' -I 'package*.json'` will include 
 
 By default, the Node.js executable will be called like `node <project>`, with no command-line flags.
 You can set this option (one or multiple times) each time passing a flag as the argument that will be forwarded to Node.js.
-For example `-f --experimental-network-imports` will make the final executable invoke node like `node --experimental-network-imports <project>`.
+For example `-f="--experimental-network-imports"` will make the final executable invoke node like `node --experimental-network-imports <project>`.
 
 #### -o, --out-dir OUTPUT_DIRECTORY
 
