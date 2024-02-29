@@ -31,18 +31,17 @@ The folder structure inside the archive is:
 
 ```
  demo-1.2.3-win32-x64/
- ├─ demo.cmd         # executable
+ ├─ demo.cmd         # executable with console
+ ├─ demo.vbs         # executable without console
  └─ bundle/
     ├─ node.exe      # node binary
     └─ project/
        ├─ ...        # all the files from the input directory
 ```
 
-The "executable" (`demo.cmd` in the above example) is a simple script the calls the equivalent of `node.exe project/`, and should work no matter which directory it is called from.
+The "executables" (`demo.cmd` and `demo.vbs` in the above example) are simple scripts the call the equivalent of `node.exe project/`, and should work no matter which directory they are called from. The `.cmd` and `.vbs` extensions are only for Windows bundles. On Linux and Mac there's a single script and it has no extension, so it would be called just `demo`.
 
-**Note:** Make sure your `package.json` has a `"main"` entrypoint set, otherwise it won't work.
-
-The `.cmd` extension is only for Windows bundles. On Linux and Mac it would be called just `demo`.
+**Note:** Make sure your `package.json` has a `"main"` entrypoint set, otherwise the executable scripts won't know how to run your project.
 
 
 ## Command Line Options
